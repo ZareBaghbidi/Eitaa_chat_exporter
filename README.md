@@ -1,4 +1,4 @@
-# eitaa-export
+# Eitaa_chat_exporter
 
 **English** | [فارسی](README.fa.md)
 
