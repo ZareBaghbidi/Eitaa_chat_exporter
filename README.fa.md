@@ -271,4 +271,4 @@ python scripts/build_demo.py
 
 ## مجوز
 
-MIT
+[MIT](LICENSE)
