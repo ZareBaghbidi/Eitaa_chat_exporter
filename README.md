@@ -294,4 +294,4 @@ documentation are English.
 
 ## License
 
-MIT
+[MIT](LICENSE)
