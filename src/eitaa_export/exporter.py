@@ -198,7 +198,7 @@ class Exporter:
     def warn(self, text: str) -> None:
         if text not in self._warned:
             self._warned.add(text)
-            self.progress(f"warning: {text}")
+            self.progress(f"Warning: {text}")
             self.stats.warnings.append(text)
 
     async def export(self, peer_reference: str) -> ExportStats:
@@ -214,7 +214,7 @@ class Exporter:
         raw_messages = await self._fetch_history(peer)
         messages = self._filter_and_sort(raw_messages)
         chat = self._build_chat(peer, info, peer_reference)
-        self.progress(f"fetched {len(messages)} messages from «{chat.title}»")
+        self.progress(f"Fetched {len(messages)} messages from «{chat.title}»")
 
         models, jobs = self._normalize(messages, chat)
         if options.include_created:
@@ -227,11 +227,11 @@ class Exporter:
                 self.client,
                 options.output,
                 quiet=options.quiet,
-                progress=self.progress,
             )
             await downloader.download_all(jobs)
             self.stats.bytes_written = downloader.bytes_written
-            self.stats.warnings.extend(downloader.warnings)
+            for warning in downloader.warnings:
+                self.warn(warning)
 
         self._copy_assets()
         renderer = Renderer(chat, models, tz=self.tz)
@@ -248,32 +248,32 @@ class Exporter:
             return await self.client.peers.resolve(reference)
         invite = await self.client.invoke("messages.checkChatInvite", {"hash": code})
         if not isinstance(invite, dict):
-            raise ValueError("پاسخ نامعتبر برای لینک عضویت")  # noqa: TRY004
+            raise ValueError("Invalid response for invite link")  # noqa: TRY004
         predicate = _str(invite.get("_"))
         if predicate in {"chatInviteAlready", "chatInvitePeek"}:
             chat = _obj(invite.get("chat"))
             if chat:
                 self.index.chats[_int(chat.get("id"))] = chat
                 return _input_peer_from_chat(chat)
-            raise ValueError("لینک عضویت به گفت‌وگوی معتبری اشاره نمی‌کند")
+            raise ValueError("Invite link does not point to a valid chat")
         if predicate == "chatInvite":
-            title = _str(invite.get("title"), "این گروه/کانال")
+            title = _str(invite.get("title"), "this group/channel")
             if not self.options.join_invite:
                 raise ValueError(
-                    f"برای ورود به «{title}» باید عضو شوید. "
-                    "دستور را با --join دوباره اجرا کنید یا ابتدا در ایتا عضو شوید."
+                    f"You must join «{title}» first. "
+                    "Re-run with --join, or join the chat in Eitaa and try again."
                 )
             await self.client.invoke("messages.importChatInvite", {"hash": code})
             joined = await self.client.invoke("messages.checkChatInvite", {"hash": code})
             chat = _obj(joined.get("chat")) if isinstance(joined, dict) else {}
             if not chat:
                 raise ValueError(
-                    "ورود انجام شد اما شناسهٔ گفت‌وگو در دسترس نیست؛ "
-                    "چند لحظه بعد دوباره تلاش کنید."
+                    "Joined, but the chat identity is not available yet. "
+                    "Try again in a few seconds."
                 )
             self.index.chats[_int(chat.get("id"))] = chat
             return _input_peer_from_chat(chat)
-        raise ValueError(f"پاسخ ناشناخته برای لینک عضویت: {predicate}")
+        raise ValueError(f"Unknown response for invite link: {predicate}")
 
     async def _load_info(self, peer: dict[str, Any]) -> dict[str, Any] | None:
         try:

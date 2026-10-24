@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import mimetypes
+import os
 import re
 import shutil
 from collections import defaultdict
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from pathlib import Path
@@ -16,6 +17,7 @@ from typing import Any
 from eitaa_cli.errors import EitaaRPCError
 
 from .models import MediaInfo
+from .progress import ProgressReporter
 from .render import format_file_stamp
 
 _BAD_FILENAME_CHARS = re.compile(r'[\x00-\x1f<>:"/\\|?*]+')
@@ -480,7 +482,9 @@ class MediaPlanner:
 
 
 class MediaDownloader:
-    """Download planned media, with resume support and per-file error isolation."""
+    """Download planned media with resumable chunks and per-file progress bars."""
+
+    _CHUNK_SIZE = 512 * 1024
 
     def __init__(
         self,
@@ -488,34 +492,53 @@ class MediaDownloader:
         out_dir: Path,
         *,
         quiet: bool = False,
-        progress: Callable[[str], None] | None = None,
     ) -> None:
         self.client = client
         self.out_dir = out_dir
         self.quiet = quiet
-        self.progress = progress or (lambda _message: None)
+        self.reporter: ProgressReporter | None = None
         self.warnings: list[str] = []
         self.bytes_written = 0
 
     async def download_all(self, jobs: Iterable[MediaJob]) -> None:
-        jobs = list(jobs)
-        for index, job in enumerate(jobs, start=1):
-            info = job.info
-            if not job.dest:
-                continue
-            label = info.path or info.title or info.kind
-            if not self.quiet:
-                self.progress(f"[{index}/{len(jobs)}] {label}")
-            await self._download_job(job)
-            if info.available and info.path:
-                self.bytes_written += self._file_size(self.out_dir / info.path)
-                if info.thumb:
-                    self.bytes_written += self._file_size(self.out_dir / info.thumb)
+        jobs = [job for job in jobs if job.dest is not None]
+        if not jobs:
+            return
+        total_bytes = sum(self._job_bytes(job) for job in jobs)
+        self.reporter = ProgressReporter(
+            quiet=self.quiet,
+            total_files=len(jobs),
+            total_bytes=total_bytes,
+        )
+        with self.reporter:
+            for index, job in enumerate(jobs, start=1):
+                await self._download_job(job, index)
+                info = job.info
+                if info.available and info.path:
+                    self.bytes_written += self._file_size(self.out_dir / info.path)
+                    if info.thumb:
+                        self.bytes_written += self._file_size(self.out_dir / info.thumb)
 
-    async def _download_job(self, job: MediaJob) -> None:
+    @staticmethod
+    def _job_bytes(job: MediaJob) -> int:
+        if job.inline is not None:
+            full = max(1, len(job.inline))
+        else:
+            full = max(1, job.size)
+        total = full
+        if job.thumb_dest is not None:
+            if job.same_thumb:
+                total += full
+            elif job.thumb_inline is not None:
+                total += max(1, len(job.thumb_inline))
+            elif job.thumb_size > 0:
+                total += job.thumb_size
+        return total
+
+    async def _download_job(self, job: MediaJob, index: int) -> None:
         info = job.info
         try:
-            await self._download_full(job)
+            await self._download_full(job, index)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 - one broken file must not abort the export
@@ -526,7 +549,7 @@ class MediaDownloader:
                 info.thumb = None
             return
         try:
-            await self._download_thumb(job)
+            await self._download_thumb(job, index)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 - a thumbnail is optional
@@ -536,59 +559,187 @@ class MediaDownloader:
         elif info.kind in {"video", "gif", "round"}:
             await self._ensure_video_thumb(job)
 
-    async def _download_full(self, job: MediaJob) -> None:
+    def _reporter(self) -> ProgressReporter | None:
+        return self.reporter
+
+    async def _download_full(self, job: MediaJob, index: int) -> None:
         info = job.info
+        label = info.path or info.title or info.kind
+        expected = job.size
+        reporter = self._reporter()
         if not job.dest or not info.path:
             return
-        expected = job.size
+
         if job.inline is not None:
-            self._write_bytes(job.dest, job.inline)
+            if reporter is not None:
+                reporter.begin_file(index, label, len(job.inline))
+            try:
+                self._write_bytes(job.dest, job.inline)
+            except Exception:
+                if reporter is not None:
+                    reporter.finish(success=False)
+                raise
+            if reporter is not None:
+                reporter.finish()
             return
-        if job.location is not None and expected > 0:
-            if not self._is_complete(job.dest, expected):
-                job.dest.parent.mkdir(parents=True, exist_ok=True)
-                await self._download_with_retry(job.location, expected, job.dest)
-            return
-        raise RuntimeError("attachment has no downloadable location")
 
-    async def _download_thumb(self, job: MediaJob) -> None:
-        if job.thumb_dest is None:
+        if expected > 0 and self._is_complete(job.dest, expected):
+            if reporter is not None:
+                reporter.begin_file(index, label, expected)
+                reporter.finish(status="cached")
             return
+
+        if job.location is None:
+            if reporter is not None:
+                reporter.begin_file(index, label, expected)
+                reporter.finish(success=False)
+            raise RuntimeError("attachment has no downloadable location")
+
+        if reporter is not None:
+            reporter.begin_file(index, label, expected)
+        try:
+            await self._download_stream(job.location, expected, job.dest)
+        except Exception:
+            if reporter is not None:
+                reporter.finish(success=False)
+            raise
+        if reporter is not None:
+            reporter.finish()
+
+    async def _download_thumb(self, job: MediaJob, index: int) -> None:
+        dest = job.thumb_dest
+        if dest is None:
+            return
+        info = job.info
+        label = f"{info.path or info.title or info.kind} (thumbnail)"
+        reporter = self._reporter()
+
         if job.same_thumb:
-            if job.dest and job.dest.exists():
-                job.thumb_dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(job.dest, job.thumb_dest)
+            source = job.dest
+            if source is None or not source.exists():
+                return
+            size = max(1, self._file_size(source))
+            if reporter is not None:
+                reporter.begin_file(index, label, size)
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                await asyncio.to_thread(shutil.copyfile, source, dest)
+            except Exception:
+                if reporter is not None:
+                    reporter.finish(success=False)
+                raise
+            if reporter is not None:
+                reporter.finish(status="cached")
             return
-        if job.thumb_inline is not None:
-            self._write_bytes(job.thumb_dest, job.thumb_inline)
-            return
-        if (
-            job.thumb_location is not None
-            and job.thumb_size > 0
-            and not self._is_complete(job.thumb_dest, job.thumb_size)
-        ):
-            job.thumb_dest.parent.mkdir(parents=True, exist_ok=True)
-            await self._download_with_retry(
-                job.thumb_location, job.thumb_size, job.thumb_dest
-            )
 
-    async def _download_with_retry(
+        if job.thumb_inline is not None:
+            if reporter is not None:
+                reporter.begin_file(index, label, len(job.thumb_inline))
+            try:
+                self._write_bytes(dest, job.thumb_inline)
+            except Exception:
+                if reporter is not None:
+                    reporter.finish(success=False)
+                raise
+            if reporter is not None:
+                reporter.finish()
+            return
+
+        if job.thumb_location is None or job.thumb_size <= 0:
+            return
+        if self._is_complete(dest, job.thumb_size):
+            if reporter is not None:
+                reporter.begin_file(index, label, job.thumb_size)
+                reporter.finish(status="cached")
+            return
+        if reporter is not None:
+            reporter.begin_file(index, label, job.thumb_size)
+        try:
+            await self._download_stream(job.thumb_location, job.thumb_size, dest)
+        except Exception:
+            if reporter is not None:
+                reporter.finish(success=False)
+            raise
+        if reporter is not None:
+            reporter.finish()
+
+    async def _download_stream(
         self,
         location: dict[str, Any],
         size: int,
         output: Path,
     ) -> None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        part = output.with_name(output.name + ".part")
+        try:
+            await asyncio.to_thread(part.unlink)
+        except FileNotFoundError:
+            pass
+        offset = 0
+        try:
+            with part.open("wb") as handle:
+                while size <= 0 or offset < size:
+                    limit = self._CHUNK_SIZE if size <= 0 else min(self._CHUNK_SIZE, size - offset)
+                    chunk = await self._fetch_chunk(location, offset, limit)
+                    if not chunk:
+                        if size > 0 and offset < size:
+                            raise RuntimeError(
+                                f"download stopped at {offset} of {size} bytes"
+                            )
+                        break
+                    await asyncio.to_thread(handle.write, chunk)
+                    offset += len(chunk)
+                    if self.reporter is not None:
+                        self.reporter.advance(len(chunk))
+                    if size <= 0 and len(chunk) < limit:
+                        break
+            if size > 0 and offset < size:
+                raise RuntimeError(f"download stopped at {offset} of {size} bytes")
+            await asyncio.to_thread(os.replace, part, output)
+        except BaseException:
+            try:
+                part.unlink()
+            except OSError:
+                pass
+            raise
+
+    async def _fetch_chunk(
+        self,
+        location: dict[str, Any],
+        offset: int,
+        limit: int,
+    ) -> bytes:
+        params = {
+            "location": location,
+            "offset": offset,
+            "limit": limit,
+            "cdn_supported": False,
+        }
         for attempt in range(3):
             try:
-                await self.client.media.download(location, size=size, output=output)
-                return
+                response = await self.client.invoke(
+                    "upload.getFile",
+                    params,
+                    kind="download",
+                )
             except EitaaRPCError as exc:
                 wait = exc.retry_after_seconds
                 if wait is None or attempt >= 2:
                     raise
                 wait = min(int(wait), 120)
-                self.progress(f"  rate limited; waiting {wait}s...")
+                if self.reporter is not None:
+                    self.reporter.note(f"Rate limited; retrying in {wait}s...")
                 await asyncio.sleep(wait)
+                continue
+            if not isinstance(response, dict) or response.get("_") != "upload.file":
+                raise RuntimeError("unexpected response from upload.getFile")
+            data = response.get("bytes")
+            if isinstance(data, (bytes, bytearray)):
+                return bytes(data)
+            if data is None:
+                return b""
+            raise RuntimeError("upload.getFile returned non-bytes data")
+        raise RuntimeError("download retry loop exhausted")
 
     def _write_bytes(self, path: Path, data: bytes) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)

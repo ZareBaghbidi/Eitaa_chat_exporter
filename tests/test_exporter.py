@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -120,23 +119,21 @@ class FakeDialogs:
         }
 
 
-class FakeMedia:
-    def __init__(self, jpeg: bytes) -> None:
-        self.jpeg = jpeg
-        self.calls = 0
-
-    async def download(self, location, *, size: int, output: Path):
-        self.calls += 1
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(self.jpeg)
-
-
 class FakeClient:
     def __init__(self, messages: list[dict], jpeg: bytes = b"") -> None:
         self.peers = FakePeers()
         self.messages = FakeMessages(messages)
         self.dialogs = FakeDialogs()
-        self.media = FakeMedia(jpeg)
+        self.jpeg = jpeg
+        self.download_calls = 0
+
+    async def invoke(self, method: str, params: dict | None = None, **kwargs):
+        if method != "upload.getFile":
+            raise AssertionError(f"unexpected method: {method}")
+        self.download_calls += 1
+        values = params or {}
+        limit = int(values["limit"])
+        return {"_": "upload.file", "bytes": b"\x00" * limit}
 
 
 def _jpeg() -> bytes:

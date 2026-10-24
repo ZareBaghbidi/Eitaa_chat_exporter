@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eitaa-export"
-version = "1.0.0"
+version = "1.1.0"
 description = "Export full Eitaa chats, groups, and channels to a Telegram-style HTML archive."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
   "eitaa-cli @ git+https://github.com/MokhtariF1/eitaa-cli.git@685a71e",
   "Pillow>=10.0",
+  "rich>=13.7,<15",
 ]
 
 [project.optional-dependencies]

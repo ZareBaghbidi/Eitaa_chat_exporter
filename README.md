@@ -1,26 +1,50 @@
 # eitaa-export
 
-برون‌ریزی کامل **تاریخچهٔ کانال، گروه، سوپرگروه یا گفت‌وگوی شخصی ایتا** به یک آرشیو HTML
-با ظاهر و ساختار خروجی «Telegram Desktop»؛ همان چیدمانی که در نمونهٔ `messages.html`،
-`css/style.css`، `js/script.js`، `photos/`، `video_files/` و `stickers/` دیده می‌شود.
+**English** | [فارسی](README.fa.md)
 
-![نمونهٔ خروجی](docs/preview.png)
+Export the **complete history of an Eitaa channel, group, supergroup, or direct chat** into a
+Telegram-Desktop-style HTML archive: `messages.html`, `css/style.css`, `js/script.js`,
+`photos/`, `video_files/`, `voice_messages/`, `files/`, and `stickers/`.
 
-این ابزار از کتابخانهٔ [`eitaa-cli`](https://github.com/MokhtariF1/eitaa-cli) استفاده می‌کند
-و مستقیماً با API وب ایتا (TL over HTTPS) کار می‌کند؛ نه Selenium لازم دارد و نه مرورگر.
+![Export preview](docs/preview.png)
+
+The exporter is built on [`eitaa-cli`](https://github.com/MokhtariF1/eitaa-cli) and talks
+directly to Eitaa's TL-over-HTTPS web API. It does not use a browser, Selenium, or browser
+cookies.
 
 ---
 
-## چه چیزی ساخته می‌شود؟
+## Features
 
-```
+- **Full history**, fetched page by page with resumable media downloads.
+- **Telegram-style UI**: date separators, service events, replies, forwards, author
+  signatures, reactions (when the server provides them), rich text entities, code blocks,
+  blockquotes, hashtags, mentions, and links.
+- **Media**: photos with thumbnails, videos, voice messages, audio, documents, GIFs, and
+  stickers. Telegram-compatible filenames such as
+  `photo_1@19-08-2026_12-24-16.jpg` and `video_1@20-08-2026_18-24-45.mp4_thumb.jpg`.
+- **Per-file progress bars**: every download shows a 0→100% bar with size, speed, and ETA,
+  plus an overall bar for the whole export.
+- **Clickable profiles**: sender names and avatars open the peer in Eitaa
+  (`https://eitaa.com/<username>`), with a numeric-ID fallback when no username is available.
+- **Invite links**: `https://eitaa.com/+…` and `https://eitaa.com/joinchat/…` are supported.
+  Use `--join` if the account is not a member yet.
+- **Filters**: newest N messages, date ranges, text-only export, and sticker toggles.
+- **English CLI** with clear errors and flood-wait guidance.
+- **Offline demo** and a test suite that do not require an Eitaa account.
+
+---
+
+## Output layout
+
+```text
 export_<name>/
 ├── messages.html
 ├── css/
 │   └── style.css
 ├── js/
 │   └── script.js
-├── images/                  # آیکون‌های رابط کاربری (نسخهٔ ۱x و ۲x)
+├── images/                  # UI icons, 1x and 2x
 ├── photos/
 │   ├── photo_1@19-08-2026_12-24-16.jpg
 │   └── photo_1@19-08-2026_12-24-16_thumb.jpg
@@ -32,23 +56,22 @@ export_<name>/
 └── stickers/
 ```
 
-- تمام پیام‌ها، پیام‌های سرویس (ساخت کانال، تغییر عنوان، عضویت و…)، ریپلای‌ها،
-  فورواردها، امضای نویسنده و ری‌اکشن‌ها (اگر سرور برگرداند) رندر می‌شوند.
-- رسانه‌ها دانلود می‌شوند: عکس (همراه با نسخهٔ بندانگشتی)، ویدیو، ویس، فایل،
-  استیکر و گیف.
-- تاریخ‌ها به وقت تهران (قابل تغییر) نمایش داده می‌شوند؛ دقیقاً با همان قالب
-  `19 August 2026` و `05:16` و `title="19.08.2026 05:16:04 UTC+03:30"`.
-- نام فرستنده و تصویر پروفایل او **قابل کلیک** است و پروفایلش را در ایتا باز می‌کند
-  (`https://eitaa.com/<username>`)، اگر شناسهٔ کاربردی موجود باشد.
-- ارجاع به پیام (`#go_to_message…`) و اسکرول نرم، مثل خروجی تلگرام کار می‌کند.
-- تاریخچه به‌صورت صفحه‌به‌صفحه دریافت می‌شود؛ برای کانال‌های چند هزار پیامی هم
-  مناسب است و در صورت قطع شدن، اجرای مجدد فایل‌های موجود را ادامه می‌دهد.
+Folders are created only when they contain files. Existing complete files are reused on a
+re-run.
 
 ---
 
-## نصب
+## Requirements
 
-`eitaa-cli` هنوز روی PyPI منتشر نشده است؛ ابتدا آن را از GitHub نصب کنید:
+- Python **3.11+**
+- An Eitaa account with access to the chat you want to export
+- [`eitaa-cli`](https://github.com/MokhtariF1/eitaa-cli)
+
+---
+
+## Installation
+
+`eitaa-cli` is not on PyPI yet. Install it from GitHub first:
 
 ```bash
 git clone https://github.com/MokhtariF1/eitaa-cli.git
@@ -59,38 +82,36 @@ python -m pip install -U pip
 pip install -e '.[media]'
 ```
 
-سپس در همین محیط:
+Then install this project in the same environment:
 
 ```bash
 cd /path/to/eitaa-export
 pip install .
 ```
 
-یا برای توسعه:
+For development:
 
 ```bash
 pip install -e '.[dev]'
 ```
 
-پیش‌نیاز: Python 3.11 یا بالاتر.
-
-> اگر `eitaa-cli` را از قبل نصب کرده‌اید و نمی‌خواهید pip دوباره آن را از GitHub
-> بگیرد، از `pip install . --no-deps` استفاده کنید.
+> If `eitaa-cli` is already installed and you do not want pip to fetch it from GitHub again,
+> use `pip install . --no-deps`.
 
 ---
 
-## ورود
+## Sign in
 
-یک‌بار با حساب ایتای خود وارد شوید. کد تأیید به شمارهٔ شما فرستاده می‌شود:
+Sign in once with your Eitaa account. The verification code is sent by Eitaa:
 
 ```bash
 eitaa-export login +989121234567
 ```
 
-نشست در `~/.config/eitaa-cli/sessions.json` با دسترسی `0600` ذخیره می‌شود.
-اگر از قبل با `eitaa auth login` وارد شده‌اید، همان نشست استفاده می‌شود.
+The session is stored at `~/.config/eitaa-cli/sessions.json` with owner-only permissions
+(`0600`). If you already signed in with `eitaa auth login`, that session is reused.
 
-برای چند حساب:
+Multiple accounts:
 
 ```bash
 eitaa-export login +989121234567 --profile personal
@@ -99,73 +120,86 @@ eitaa-export export @channel --profile personal
 
 ---
 
-## استفاده
+## Usage
 
 ```bash
-# لینک کانال یا گروه
+# Channel or group link
 eitaa-export export https://eitaa.com/yazd_oi -o yazd_export
 
-# با نام کاربری
+# Username
 eitaa-export @yazd_oi
 
-# لینک عضویت (اگر عضو نیستید، با --join عضو می‌شود)
+# Invite link; join first if needed
 eitaa-export "https://eitaa.com/+AbCdEf123" --join
 
-# با شناسهٔ کامل (پیشنهاد می‌شود؛ پایدارتر از نام کاربری است)
+# Reusable references (recommended: more stable than usernames)
 eitaa-export channel:123456789:987654321
 eitaa-export chat:123456789
 eitaa-export user:123456789:987654321
 
-# فقط ۲۰۰ پیام آخر، بدون رسانه
+# Newest 200 messages, text only
 eitaa-export @yazd_oi --limit 200 --no-media -o last200
 
-# از تاریخ مشخص
+# Date range
 eitaa-export @yazd_oi --since 2026-08-01 --until 2026-09-01
 ```
 
-اگر اولین آرگومان یکی از دستورها نباشد، به‌صورت خودکار `export` در نظر گرفته می‌شود؛
-یعنی `eitaa-export @channel` همان `eitaa-export export @channel` است.
+If the first argument is not a known command, `export` is used automatically, so
+`eitaa-export @channel` means `eitaa-export export @channel`.
 
-### پیدا کردن شناسهٔ درست
+### Finding the right reference
 
 ```bash
 eitaa-export chats --limit 100
 ```
 
-ستون `REFERENCE` را دقیقاً همان‌طور که هست به دستور `export` بدهید:
+Pass the `REFERENCE` column to `export` unchanged:
 
-```
+```text
 KIND        TITLE                        USERNAME        REFERENCE
-channel     مدرسه المپیاد کامپیوتر یزد    @yazd_oi        channel:87197708:1234567890
+channel     Computer Olympiad School     @yazd_oi        channel:87197708:1234567890
 ```
 
-برای گفت‌وگوهای شخصی، `user:ID:ACCESS_HASH` پایدارترین شکل است. یک شناسهٔ عددی
-تنها کافی نیست، چون ایتا برای کاربران و کانال‌ها `access_hash` هم لازم دارد.
+For direct chats, `user:ID:ACCESS_HASH` is the most reliable form. A bare numeric ID is not
+enough because Eitaa requires an `access_hash` for users and channels.
 
-### گزینه‌ها
+### Options
 
-| گزینه | کار |
+| Option | Meaning |
 |---|---|
-| `-o, --output DIR` | پوشهٔ خروجی (پیش‌فرض `export_<username>`) |
-| `--limit N` | فقط N پیام آخر |
-| `--since` / `--until` | فیلتر تاریخ (`YYYY-MM-DD` یا ISO 8601) |
-| `--timezone` | منطقهٔ زمانی خروجی (پیش‌فرض `Asia/Tehran`) |
-| `--no-media` | فقط متن؛ هیچ رسانه‌ای دانلود نمی‌شود |
-| `--no-stickers` | استیکرها دانلود نشوند |
-| `--no-created` | پیام «Channel/Group created» اضافه نشود |
-| `--join` | در صورت نیاز، با لینک عضویت به گروه/کانال بپیوند |
-| `--page-size` | اندازهٔ هر صفحهٔ دریافت (پیش‌فرض ۱۰۰) |
-| `--profile` | نام پروفایل ذخیره‌شده |
-| `-q, --quiet` | نمایش ندادن پیشرفت |
+| `-o, --output DIR` | Output directory (default: `export_<username>`) |
+| `--limit N` | Only the newest N messages |
+| `--since` / `--until` | Date filter (`YYYY-MM-DD` or ISO 8601) |
+| `--timezone` | Timezone used in the archive (default: `Asia/Tehran`) |
+| `--no-media` | Text only; do not download any media |
+| `--no-stickers` | Skip stickers |
+| `--no-created` | Do not add a synthetic “Channel/Group created” event |
+| `--join` | Join the group/channel through an invite link if needed |
+| `--page-size` | Messages per history request (default: 100) |
+| `--profile` | Stored `eitaa-cli` profile name |
+| `-q, --quiet` | Disable progress output |
 
 ---
 
-## استفاده به‌عنوان کتابخانه
+## Progress bars
+
+While media is downloading, the terminal shows:
+
+- **All files** — total size and overall percentage.
+- **Current file** — a bar that fills from 0% to 100%, with the downloaded size, transfer
+  speed, and estimated time remaining.
+
+Completed files stay visible for one more file so the 100% state is readable; files already
+complete are marked `cached`. If `rich` is unavailable or stderr is not a terminal, the
+exporter falls back to simple percentage lines. `--quiet` suppresses progress entirely.
+
+---
+
+## Library usage
 
 ```python
 import asyncio
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from eitaa_cli import EitaaClient
 from eitaa_export import ExportOptions, Exporter
@@ -191,65 +225,73 @@ asyncio.run(main())
 
 ---
 
-## نکات مهم و محدودیت‌ها
+## How it works
 
-- **دسترسی:** تنها چیزهایی قابل دریافت است که حساب شما اجازهٔ دیدنشان را دارد.
-  برای کانال/گروه خصوصی باید عضو باشید. این ابزار از حساب کاربری استفاده می‌کند،
-  نه ربات؛ ربات‌های ایتا تاریخچهٔ کانال‌های دیگر را نمی‌بینند.
-- **تاریخچهٔ کامل:** اگر کانال برای اعضای عادی تاریخچه را محدود کرده باشد یا شما
-  تازه عضو شده باشید، سرور فقط همان بازهٔ مجاز را برمی‌گرداند. ابزار هر چه سرور
-  بدهد ذخیره می‌کند و در ابتدا هشدار می‌دهد اگر نتواند جزئیات گفت‌وگو را بگیرد.
-- **سرعت و محدودیت:** دریافت صفحه‌به‌صفحه و دانلود تک‌به‌تک انجام می‌شود تا به
-  محدودیت‌های ایتا برنخوریم. در صورت خطای موقت، بعد از چند دقیقه دوباره اجرا کنید؛
-  فایل‌های کامل‌شده دوباره دانلود نمی‌شوند.
-- **رسانه‌ها:** لینک فایل‌ها در ایتا موقتی است؛ بهتر است بلافاصله پس از دریافت
-  تاریخچه، رسانه‌ها را هم دانلود کنید. اگر یک فایل خراب/منقضی باشد، بقیهٔ خروجی
-  متوقف نمی‌شود و آن پیام با پیام «Unavailable» رندر می‌شود.
-- **ری‌اکشن‌ها:** لایهٔ ۱۳۵ API ایتا فیلد ری‌اکشن ندارد؛ اگر سرور در آینده آن را
-  برگرداند، قالب خروجی آماده است.
-- **تاریخ ساخت کانال:** اگر سرور پیام سرویس «ساخته شد» را برنگرداند، ابزار یک
-  پیام سرویس بر اساس تاریخ ساخت خود کانال اضافه می‌کند (با `--no-created` خاموش
-  می‌شود).
-- **ورود دو مرحله‌ای:** اگر روی حساب ایتای شما رمز دومرحله‌ای فعال است، نسخهٔ
-  فعلی `eitaa-cli` ورود با رمز را پشتیبانی نمی‌کند؛ از نشست موجود یا حسابی که
-  رمز دومرحله‌ای ندارد استفاده کنید.
-- **حریم خصوصی:** خروجی شامل متن و رسانهٔ خصوصی است. آن را جای امن نگه دارید و
-  به کسی که مجاز نیست ندهید.
-- **مسئولیت:** فقط گفت‌وگوها/کانال‌هایی را استخراج کنید که مالک آن‌ها هستید یا
-  اجازهٔ صریح دارید. رعایت قوانین ایتا و حقوق نویسندگان بر عهدهٔ شماست.
+1. Resolve the peer (username, link, invite link, or typed reference).
+2. Fetch `messages.getHistory` pages and collect users/chats seen in each response.
+3. Normalize messages, service events, text entities, forwards, replies, and attachments.
+4. Plan deterministic Telegram-compatible filenames and download media in chunks.
+5. Render `messages.html` and copy the CSS, JS, and icon assets.
 
 ---
 
-## عیب‌یابی
+## Limitations
 
-| خطا | راه‌حل |
+- **Access:** the exporter can only read what your account is allowed to read. Private
+  channels/groups require membership. Eitaa bots cannot read arbitrary channel history, so
+  this tool uses a user session.
+- **Full history:** if a channel restricts history for regular members, the server returns
+  only the allowed range. The exporter saves what the server provides and warns when chat
+  metadata cannot be loaded.
+- **Temporary media:** Eitaa file references can expire. Export and download promptly. A
+  broken file does not abort the whole export; the message is rendered as “Unavailable”.
+- **Reactions:** API layer 135 has no reaction field. The HTML template is ready if the
+  server starts returning reactions.
+- **Two-step login:** the current `eitaa-cli` does not support password/cloud-password
+  login. Use an existing session or an account without two-step verification.
+- **Privacy:** an export contains private text and media. Store it securely.
+- **Responsibility:** export only chats you own or are authorized to access. You are
+  responsible for complying with Eitaa's terms and with the rights of message authors.
+- **Not byte-identical to Telegram:** the archive reproduces Telegram Desktop's layout,
+  classes, and interactions, but it is an independent implementation.
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
 |---|---|
-| `ابتدا وارد شوید` | `eitaa-export login +98...` |
-| `طرف مقابل پیدا نشد` | از `eitaa-export chats` شناسهٔ `channel:…` یا `user:…` را بردارید |
-| `FLOOD_WAIT` | چند دقیقه صبر کنید؛ زمان دقیق در پیام خطا می‌آید |
-| فایل‌ها دانلود نمی‌شوند | مطمئن شوید عضو هستید و فایل حذف/منقضی نشده است |
-| زمان‌ها اشتباه‌اند | `--timezone` را تنظیم کنید (پیش‌فرض `Asia/Tehran`) |
-| HTML بدون تصویر | پوشهٔ `images/` را همراه `css/` و `js/` کپی کنید |
+| `Not signed in` | `eitaa-export login +98...` |
+| `Peer not found` | Use `eitaa-export chats` and copy the full `channel:…`/`user:…` reference |
+| `FLOOD_WAIT` | Wait for the server-provided delay; the exporter retries automatically when possible |
+| Media files are missing | Confirm membership; the file may have been deleted or expired |
+| Wrong times | Pass the correct `--timezone` |
+| HTML has no images | Keep the `images/`, `css/`, and `js/` folders next to `messages.html` |
+| Progress bars do not render | Use an interactive terminal; redirected output uses plain lines |
 
 ---
 
-## توسعه و تست
+## Development and tests
 
 ```bash
 pip install -e '.[dev]'
 pytest -q
 ruff check src tests scripts
+mypy --ignore-missing-imports src/eitaa_export
 ```
 
-برای ساخت یک خروجی نمونهٔ آفلاین (بدون نیاز به حساب ایتا):
+Build an offline demo without an Eitaa account:
 
 ```bash
 python scripts/build_demo.py
-# سپس demo/messages.html را در مرورگر باز کنید
+# open demo/messages.html in a browser
 ```
+
+The demo data is Persian to mirror a real Eitaa channel; all program output and the default
+documentation are English.
 
 ---
 
-## مجوز
+## License
 
 MIT

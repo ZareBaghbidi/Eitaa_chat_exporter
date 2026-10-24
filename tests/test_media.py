@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from eitaa_export.media import MediaPlanner
 
 TZ = ZoneInfo("Asia/Tehran")
@@ -166,3 +168,36 @@ def test_invite_hash_parsing() -> None:
     assert invite_hash("+AbCdEf123") == "AbCdEf123"
     assert invite_hash("@yazd_oi") is None
     assert invite_hash("https://eitaa.com/yazd_oi") is None
+
+
+@pytest.mark.asyncio
+async def test_downloader_streams_in_chunks(tmp_path) -> None:
+    from eitaa_export.media import MediaDownloader, MediaJob
+    from eitaa_export.models import MediaInfo
+
+    class Client:
+        def __init__(self) -> None:
+            self.offsets: list[int] = []
+
+        async def invoke(self, method, params=None, **kwargs):
+            assert method == "upload.getFile"
+            values = params or {}
+            offset = int(values["offset"])
+            limit = int(values["limit"])
+            self.offsets.append(offset)
+            return {"_": "upload.file", "bytes": b"z" * limit}
+
+    size = 1024 * 1024 + 100
+    client = Client()
+    job = MediaJob(
+        info=MediaInfo(kind="document", path="files/big.bin", title="big.bin"),
+        location={"id": 1},
+        size=size,
+        dest=tmp_path / "files" / "big.bin",
+    )
+    downloader = MediaDownloader(client, tmp_path, quiet=True)
+    await downloader.download_all([job])
+    assert job.dest is not None
+    assert job.dest.stat().st_size == size
+    assert client.offsets == [0, 512 * 1024, 1024 * 1024]
+    assert downloader.bytes_written == size

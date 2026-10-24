@@ -31,60 +31,65 @@ COMMANDS = {"export", "login", "chats", "version"}
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="eitaa-export",
-        description="ذخیرهٔ کامل کانال، گروه یا گفت‌وگوی ایتا به شکل خروجی HTML تلگرام",
+        description="Export Eitaa channels, groups, and chats as a Telegram-style HTML archive.",
     )
     parser.add_argument("--version", action="version", version=f"eitaa-export {__version__}")
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     export = subparsers.add_parser(
         "export",
-        help="برون‌ریزی یک کانال/گروه/گفت‌وگو",
-        description="تمام تاریخچه و رسانه‌های یک کانال، گروه یا شخص را ذخیره می‌کند.",
+        help="Export a channel, group, or chat",
+        description="Download the complete history and media of an Eitaa peer.",
     )
-    export.add_argument("peer", help="لینک، @username، یا شناسهٔ طرف مقابل")
-    export.add_argument("-o", "--output", help="پوشهٔ خروجی (پیش‌فرض: export_<نام>)")
-    export.add_argument("--profile", help="نام پروفایل ذخیره‌شده در eitaa-cli")
+    export.add_argument("peer", help="Invite link, channel link, @username, or peer reference")
+    export.add_argument("-o", "--output", help="Output directory (default: export_<name>)")
+    export.add_argument("--profile", help="eitaa-cli profile name")
     export.add_argument(
         "--join",
         action="store_true",
-        help="در صورت نیاز، با لینک عضویت به گروه/کانال بپیوند",
+        help="Join the group/channel through an invite link if needed",
     )
-    export.add_argument("--no-media", action="store_true", help="فقط متن؛ رسانه‌ها دانلود نشوند")
-    export.add_argument("--no-stickers", action="store_true", help="استیکرها دانلود نشوند")
-    export.add_argument("--limit", type=int, help="فقط N پیام آخر")
-    export.add_argument("--since", help="از تاریخ (YYYY-MM-DD یا ISO 8601)")
-    export.add_argument("--until", help="تا تاریخ (YYYY-MM-DD یا ISO 8601)")
+    export.add_argument("--no-media", action="store_true", help="Text only; skip all media")
+    export.add_argument("--no-stickers", action="store_true", help="Skip sticker downloads")
+    export.add_argument("--limit", type=int, help="Only the newest N messages")
+    export.add_argument("--since", help="Start date (YYYY-MM-DD or ISO 8601)")
+    export.add_argument("--until", help="End date (YYYY-MM-DD or ISO 8601)")
     export.add_argument(
         "--timezone",
         default="Asia/Tehran",
-        help="منطقهٔ زمانی خروجی (پیش‌فرض: Asia/Tehran)",
+        help="Timezone used for the archive (default: Asia/Tehran)",
     )
     export.add_argument(
         "--no-created",
         action="store_true",
-        help="پیام ساخت کانال/گروه به ابتدای خروجی اضافه نشود",
+        help="Do not add a synthetic ‘Channel/Group created’ event",
     )
-    export.add_argument("--page-size", type=int, default=100, help="اندازهٔ هر صفحهٔ دریافت")
-    export.add_argument("-q", "--quiet", action="store_true", help="نمایش ندادن پیشرفت")
+    export.add_argument(
+        "--page-size",
+        type=int,
+        default=100,
+        help="Messages requested per history page (default: 100)",
+    )
+    export.add_argument("-q", "--quiet", action="store_true", help="Disable progress output")
 
     login = subparsers.add_parser(
         "login",
-        help="ورود با شمارهٔ تلفن و کد یک‌بارمصرف",
-        description="با حساب ایتای خود وارد شوید تا خروجی بتواند تاریخچه را بخواند.",
+        help="Sign in with a phone number and one-time code",
+        description="Sign in so the exporter can read your authorized chats.",
     )
-    login.add_argument("phone", nargs="?", help="شمارهٔ تلفن، مثلاً +989121234567")
-    login.add_argument("--profile", help="نام پروفایل برای ذخیرهٔ نشست")
+    login.add_argument("phone", nargs="?", help="Phone number, e.g. +989121234567")
+    login.add_argument("--profile", help="Profile name used to store the session")
 
     chats = subparsers.add_parser(
         "chats",
-        help="نمایش گفت‌وگوها و شناسه‌های قابل استفاده",
-        description="فهرست گفت‌وگوها، کانال‌ها و گروه‌ها را با شناسهٔ قابل استفاده نشان می‌دهد.",
+        help="List chats and reusable peer references",
+        description="Show direct chats, groups, and channels with references you can export.",
     )
-    chats.add_argument("--limit", type=int, default=50, help="تعداد گفت‌وگو (پیش‌فرض: 50)")
-    chats.add_argument("--query", help="جست‌وجو در نام/شناسه")
-    chats.add_argument("--profile", help="نام پروفایل")
+    chats.add_argument("--limit", type=int, default=50, help="Number of chats (default: 50)")
+    chats.add_argument("--query", help="Filter by name or username")
+    chats.add_argument("--profile", help="eitaa-cli profile name")
 
-    subparsers.add_parser("version", help="نمایش نسخه")
+    subparsers.add_parser("version", help="Show the version")
     return parser
 
 
@@ -110,7 +115,7 @@ def _parse_moment(value: str | None, tz: ZoneInfo, *, end_of_day: bool = False) 
             )
         moment = datetime.fromisoformat(text)
     except ValueError as exc:
-        raise ValueError(f"تاریخ نامعتبر است: {value}") from exc
+        raise ValueError(f"Invalid date: {value}") from exc
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=tz)
     return moment
@@ -131,20 +136,20 @@ def _default_output(peer: str) -> Path:
 async def _run_login(args: argparse.Namespace) -> int:
     phone = args.phone
     if not phone:
-        phone = input("شمارهٔ تلفن (مثلاً +989121234567): ").strip()
+        phone = input("Phone number (e.g. +989121234567): ").strip()
     if not phone:
-        print("شمارهٔ تلفن لازم است.", file=sys.stderr)
+        print("A phone number is required.", file=sys.stderr)
         return 2
     client = await EitaaClient.create(require_auth=False, **_client_options(args))
     async with client:
         challenge = await client.auth.request_code(phone)
         delivery = getattr(challenge.delivery, "value", challenge.delivery)
-        print(f"کد تأیید از طریق {delivery} ارسال شد.", file=sys.stderr)
+        print(f"A verification code was sent via {delivery}.", file=sys.stderr)
         if challenge.next_delivery:
-            print(f"روش جایگزین: {challenge.next_delivery}", file=sys.stderr)
-        code = input("کد تأیید: ").strip()
+            print(f"Fallback delivery: {challenge.next_delivery}", file=sys.stderr)
+        code = input("Verification code: ").strip()
         if not code:
-            print("کد تأیید لازم است.", file=sys.stderr)
+            print("A verification code is required.", file=sys.stderr)
             return 2
         await client.auth.sign_in(
             challenge.phone_number,
@@ -152,7 +157,7 @@ async def _run_login(args: argparse.Namespace) -> int:
             code,
             profile_name=args.profile,
         )
-    print("ورود با موفقیت انجام شد. اکنون می‌توانید export بگیرید.")
+    print("Login successful. You can now run exports.")
     return 0
 
 
@@ -205,10 +210,16 @@ async def _run_chats(args: argparse.Namespace) -> int:
         rows.append((kind, str(title), username, reference))
 
     if not rows:
-        print("گفت‌وگویی پیدا نشد.")
+        print("No chats found.")
         return 0
-    widths = [max(len(row[index]) for row in rows + [("KIND", "TITLE", "USERNAME", "REFERENCE")]) for index in range(4)]
-    print(f"{'KIND':<{widths[0]}}  {'TITLE':<{widths[1]}}  {'USERNAME':<{widths[2]}}  REFERENCE")
+    headers = ("KIND", "TITLE", "USERNAME", "REFERENCE")
+    widths = [
+        max(len(row[index]) for row in [*rows, headers]) for index in range(4)
+    ]
+    print(
+        f"{'KIND':<{widths[0]}}  {'TITLE':<{widths[1]}}  "
+        f"{'USERNAME':<{widths[2]}}  REFERENCE"
+    )
     for kind, title, username, reference in rows:
         print(f"{kind:<{widths[0]}}  {title:<{widths[1]}}  {username:<{widths[2]}}  {reference}")
     return 0
@@ -231,15 +242,15 @@ def _display_name(entity: dict[str, Any] | None) -> str:
 
 async def _run_export(args: argparse.Namespace) -> int:
     if args.limit is not None and args.limit < 1:
-        print("--limit باید مثبت باشد.", file=sys.stderr)
+        print("--limit must be positive.", file=sys.stderr)
         return 2
     if args.page_size < 1:
-        print("--page-size باید مثبت باشد.", file=sys.stderr)
+        print("--page-size must be positive.", file=sys.stderr)
         return 2
     try:
         tz = ZoneInfo(args.timezone)
     except (ZoneInfoNotFoundError, ValueError):
-        print(f"منطقهٔ زمانی نامعتبر است: {args.timezone}", file=sys.stderr)
+        print(f"Invalid timezone: {args.timezone}", file=sys.stderr)
         return 2
     try:
         since = _parse_moment(args.since, tz)
@@ -248,12 +259,12 @@ async def _run_export(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 2
     if since and until and since > until:
-        print("--since باید پیش از --until باشد.", file=sys.stderr)
+        print("--since must be earlier than --until.", file=sys.stderr)
         return 2
 
     output = Path(args.output).expanduser() if args.output else _default_output(args.peer)
     if output.exists() and not output.is_dir():
-        print(f"مسیر خروجی یک پوشه نیست: {output}", file=sys.stderr)
+        print(f"Output path is not a directory: {output}", file=sys.stderr)
         return 2
     options = ExportOptions(
         output=output,
@@ -278,17 +289,17 @@ async def _run_export(args: argparse.Namespace) -> int:
 
 def _print_stats(stats: ExportStats, output: Path) -> None:
     print()
-    print(f"خروجی در «{output.resolve()}» ذخیره شد.")
+    print(f"Export saved to: {output.resolve()}")
     print(
-        f"پیام‌ها: {stats.messages} | رویدادها: {stats.service_messages} | "
-        f"عکس: {stats.photos} | ویدیو: {stats.videos} | "
-        f"صوت: {stats.voice_messages} | فایل: {stats.documents} | استیکر: {stats.stickers}"
+        f"Messages: {stats.messages} | Service events: {stats.service_messages} | "
+        f"Photos: {stats.photos} | Videos: {stats.videos} | "
+        f"Voice: {stats.voice_messages} | Files: {stats.documents} | Stickers: {stats.stickers}"
     )
     if stats.bytes_written:
-        print(f"حجم رسانه‌های دانلودشده: {_human_size(stats.bytes_written)}")
-    print(f"برای دیدن خروجی: file://{output.resolve() / 'messages.html'}")
+        print(f"Media size: {_human_size(stats.bytes_written)}")
+    print(f"Open: file://{output.resolve() / 'messages.html'}")
     if stats.warnings:
-        print(f"هشدارها: {len(stats.warnings)} مورد (جزئیات هنگام اجرا نمایش داده شد)")
+        print(f"Warnings: {len(stats.warnings)} (details were printed above)")
 
 
 def _human_size(size: int) -> str:
@@ -327,34 +338,34 @@ def main(argv: Sequence[str] | None = None) -> int:
         _build_parser().print_help()
         return 0
     except KeyboardInterrupt:
-        print("\nلغو شد.", file=sys.stderr)
+        print("\nCancelled.", file=sys.stderr)
         return 130
     except AuthenticationRequired:
         print(
-            "ابتدا وارد شوید:  eitaa-export login +989121234567",
+            "Not signed in. Run: eitaa-export login +989121234567",
             file=sys.stderr,
         )
         return 1
     except OtpError as exc:
         reason = getattr(exc.reason, "value", exc.reason)
-        print(f"خطای ورود: {reason}", file=sys.stderr)
+        print(f"Login failed: {reason}", file=sys.stderr)
         if exc.retry_after_seconds:
-            print(f"لطفاً {exc.retry_after_seconds} ثانیه بعد دوباره تلاش کنید.", file=sys.stderr)
+            print(f"Try again in {exc.retry_after_seconds} seconds.", file=sys.stderr)
         return 1
     except PeerResolutionError as exc:
-        print(f"طرف مقابل پیدا نشد: {exc}", file=sys.stderr)
-        print("می‌توانید با دستور «eitaa-export chats» شناسهٔ درست را ببینید.", file=sys.stderr)
+        print(f"Peer not found: {exc}", file=sys.stderr)
+        print("Run 'eitaa-export chats' to find a reusable reference.", file=sys.stderr)
         return 1
     except EitaaRPCError as exc:
-        print(f"خطای سرور ایتا: {exc.code} {exc.text}".rstrip(), file=sys.stderr)
+        print(f"Eitaa server error: {exc.code} {exc.text}".rstrip(), file=sys.stderr)
         if exc.retry_after_seconds:
-            print(f"لطفاً {exc.retry_after_seconds} ثانیه بعد دوباره تلاش کنید.", file=sys.stderr)
+            print(f"Try again in {exc.retry_after_seconds} seconds.", file=sys.stderr)
         return 1
     except EitaaError as exc:
-        print(f"خطا: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
     except ValueError as exc:
-        print(f"خطا: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 2
 
 
