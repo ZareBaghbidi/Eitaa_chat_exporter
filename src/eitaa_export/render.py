@@ -425,6 +425,9 @@ class Renderer:
     def _media(self, media: MediaInfo) -> str:
         if media.kind == "photo":
             if not media.path:
+                if media.note:
+                    status = format_size(media.size) if media.size else ""
+                    return self._info_media("media_photo", "Photo", media.note, status)
                 return ""
             thumb = media.thumb or media.path
             width, height = fit_dimensions(media.width, media.height, 260, (260, 195))
@@ -491,6 +494,8 @@ class Renderer:
 
         if media.kind == "sticker":
             if not media.has_file:
+                if media.note:
+                    return self._info_media("media_file", "Sticker", media.note, "")
                 return ""
             width, height = fit_dimensions(media.width, media.height, 128, (128, 128))
             return (
@@ -558,7 +563,7 @@ class Renderer:
         if media.size:
             status_parts.append(format_size(media.size))
         status = ", ".join(status_parts)
-        description = "Unavailable, please try again later."
+        description = media.note or "Unavailable, please try again later."
         status_html = f'<div class="status details">{_esc(status)}</div>' if status else ""
         return (
             '<div class="media_wrap clearfix">\n'

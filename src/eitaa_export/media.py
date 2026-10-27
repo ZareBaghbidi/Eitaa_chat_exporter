@@ -8,7 +8,7 @@ import os
 import re
 import shutil
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from pathlib import Path
@@ -71,12 +71,40 @@ class MediaJob:
 class MediaPlanner:
     """Turn raw ``MessageMedia`` objects into concrete download jobs."""
 
-    def __init__(self, out_dir: Path, tz: tzinfo, *, include_media: bool = True) -> None:
+    def __init__(
+        self,
+        out_dir: Path,
+        tz: tzinfo,
+        *,
+        include_media: bool = True,
+        allowed_kinds: set[str] | None = None,
+        max_file_size: int | None = None,
+    ) -> None:
         self.out_dir = out_dir
         self.tz = tz
         self.include_media = include_media
+        self.allowed_kinds = allowed_kinds
+        self.max_file_size = max_file_size or None
         self.counters: dict[str, int] = defaultdict(int)
         self.used: set[str] = set()
+
+    def _allowed(self, kind: str) -> bool:
+        if self.allowed_kinds is None:
+            return True
+        filter_kind = "video" if kind == "round" else kind
+        return filter_kind in self.allowed_kinds
+
+    def _skipped(self, info: MediaInfo, reason: str) -> MediaJob:
+        info.available = False
+        info.path = None
+        info.thumb = None
+        info.note = reason
+        return MediaJob(info=info)
+
+    def _size_reason(self, size: int) -> str:
+        from .render import format_size
+
+        return f"File is larger than the {format_size(self.max_file_size or 0)} limit."
 
     def plan(
         self,
@@ -179,20 +207,25 @@ class MediaPlanner:
             return None
         largest = max(sizes, key=lambda item: (self._side(item), self._size_bytes(item)))
         thumb = self._choose_thumb(sizes, largest)
+        full_size = self._size_bytes(largest)
+        info = MediaInfo(
+            kind="photo",
+            width=_int(largest.get("w")),
+            height=_int(largest.get("h")),
+            size=full_size,
+        )
+        if not self._allowed("photo"):
+            return self._skipped(info, "Photo excluded by export settings.")
+        if self.max_file_size is not None and full_size > self.max_file_size:
+            return self._skipped(info, self._size_reason(full_size))
+
         stamp = self._stamp(timestamp)
         number = self._counter("photo")
         rel = self._unique(f"photos/photo_{number}@{stamp}.jpg")
         rel_thumb = rel[:-4] + "_thumb.jpg" if rel.endswith(".jpg") else rel + "_thumb.jpg"
         self.used.add(rel_thumb)
-
-        info = MediaInfo(
-            kind="photo",
-            path=rel,
-            thumb=rel_thumb,
-            width=_int(largest.get("w")),
-            height=_int(largest.get("h")),
-            size=self._size_bytes(largest),
-        )
+        info.path = rel
+        info.thumb = rel_thumb
         job = MediaJob(
             info=info,
             location=self._photo_location(photo, _str(largest.get("type"))),
@@ -310,6 +343,42 @@ class MediaPlanner:
 
         extension = self._extension(mime, filename, kind)
         clean_name = self._sanitize(filename)
+        display_title = {
+            "sticker": clean_name or "Sticker",
+            "video": "Video file",
+            "gif": "GIF",
+            "round": "Video message",
+            "voice": "Voice message",
+            "audio": title or clean_name or "Audio file",
+            "document": clean_name or "File",
+        }.get(kind, "File")
+        info = MediaInfo(
+            kind=kind,
+            width=width,
+            height=height,
+            duration=duration,
+            size=_int(document.get("size")),
+            title=display_title,
+            description=performer,
+            mime=mime,
+            sticker_emoji=sticker_emoji,
+        )
+        if not self._allowed(kind):
+            labels = {
+                "sticker": "Sticker",
+                "video": "Video",
+                "gif": "GIF",
+                "round": "Video message",
+                "voice": "Voice message",
+                "audio": "Audio file",
+                "document": "File",
+            }
+            return self._skipped(
+                info,
+                f"{labels.get(kind, 'File')} excluded by export settings.",
+            )
+        if self.max_file_size is not None and info.size > self.max_file_size:
+            return self._skipped(info, self._size_reason(info.size))
 
         if kind == "sticker":
             directory = "stickers"
@@ -358,18 +427,8 @@ class MediaPlanner:
             display_title = clean_name or "File"
 
         rel = self._unique(f"{directory}/{base}")
-        info = MediaInfo(
-            kind=kind,
-            path=rel,
-            width=width,
-            height=height,
-            duration=duration,
-            size=_int(document.get("size")),
-            title=display_title,
-            description=performer,
-            mime=mime,
-            sticker_emoji=sticker_emoji,
-        )
+        info.path = rel
+        info.title = display_title
         job = MediaJob(
             info=info,
             location=self._document_location(document, ""),
@@ -492,32 +551,64 @@ class MediaDownloader:
         out_dir: Path,
         *,
         quiet: bool = False,
+        max_total_bytes: int = 0,
+        reporter_factory: Callable[[int, int], Any] | None = None,
     ) -> None:
         self.client = client
         self.out_dir = out_dir
         self.quiet = quiet
-        self.reporter: ProgressReporter | None = None
+        self.max_total_bytes = max(0, max_total_bytes)
+        self.reporter_factory = reporter_factory
+        self.reporter: Any = None
         self.warnings: list[str] = []
         self.bytes_written = 0
+        self._budget_used = 0
 
     async def download_all(self, jobs: Iterable[MediaJob]) -> None:
         jobs = [job for job in jobs if job.dest is not None]
         if not jobs:
             return
         total_bytes = sum(self._job_bytes(job) for job in jobs)
-        self.reporter = ProgressReporter(
-            quiet=self.quiet,
-            total_files=len(jobs),
-            total_bytes=total_bytes,
-        )
+        if self.reporter_factory is not None:
+            self.reporter = self.reporter_factory(len(jobs), total_bytes)
+        else:
+            self.reporter = ProgressReporter(
+                quiet=self.quiet,
+                total_files=len(jobs),
+                total_bytes=total_bytes,
+            )
         with self.reporter:
             for index, job in enumerate(jobs, start=1):
+                full_size = self._full_bytes(job)
+                if (
+                    self.max_total_bytes
+                    and self._budget_used + full_size > self.max_total_bytes
+                ):
+                    self._skip_for_budget(job, index, full_size)
+                    continue
                 await self._download_job(job, index)
                 info = job.info
                 if info.available and info.path:
+                    self._budget_used += self._job_bytes(job)
                     self.bytes_written += self._file_size(self.out_dir / info.path)
                     if info.thumb:
                         self.bytes_written += self._file_size(self.out_dir / info.thumb)
+
+    @staticmethod
+    def _full_bytes(job: MediaJob) -> int:
+        if job.inline is not None:
+            return max(1, len(job.inline))
+        return max(1, job.size)
+
+    def _skip_for_budget(self, job: MediaJob, index: int, size: int) -> None:
+        info = job.info
+        info.available = False
+        info.path = None
+        info.thumb = None
+        info.note = "Skipped: total download limit reached."
+        if self.reporter is not None:
+            self.reporter.begin_file(index, info.path or info.title or info.kind, size)
+            self.reporter.finish(status="limit")
 
     @staticmethod
     def _job_bytes(job: MediaJob) -> int:

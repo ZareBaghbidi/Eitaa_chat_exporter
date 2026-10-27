@@ -1,4 +1,4 @@
-# Eitaa_chat_exporter
+# eitaa-export
 
 **English** | [فارسی](README.fa.md)
 
@@ -30,6 +30,7 @@ cookies.
 - **Invite links**: `https://eitaa.com/+…` and `https://eitaa.com/joinchat/…` are supported.
   Use `--join` if the account is not a member yet.
 - **Filters**: newest N messages, date ranges, text-only export, and sticker toggles.
+- **Telegram-style web GUI** with sign-in, chat list, media filters, size limits, and live progress.
 - **English CLI** with clear errors and flood-wait guidance.
 - **Offline demo** and a test suite that do not require an Eitaa account.
 
@@ -117,6 +118,56 @@ Multiple accounts:
 eitaa-export login +989121234567 --profile personal
 eitaa-export export @channel --profile personal
 ```
+
+---
+
+## Graphical interface
+
+```bash
+eitaa-export gui
+```
+
+This starts a local web app at **http://127.0.0.1:8765** and opens it in your
+browser. It is designed like Telegram Desktop: dark and light themes, a chat
+sidebar, a profile menu, and a focused export panel.
+
+- **Sign in from the browser** with your phone number and the one-time code.
+  If a saved session exists, the app opens directly on your chats.
+- **Browse chats** with search, unread badges, avatars, and last-message previews.
+- **Select a chat** or paste any channel link, invite link, `@username`, or peer ID.
+- **Choose media types**: photos, videos, voice, audio, files, stickers, GIFs.
+  Text messages are always included.
+- **Set limits**: maximum size per file, total download budget, newest N messages,
+  and an optional date range.
+- **Watch progress**: an overall bar plus a per-file bar with percentage, size,
+  speed, and ETA. The job survives page refreshes while the server is running.
+- **Open the result** directly in the browser through the built-in archive route.
+- **Sign out** from the profile menu; the local session is removed.
+
+![GUI](docs/gui.png)
+
+<details>
+<summary>More screenshots</summary>
+
+![Sign in](docs/gui-login.png)
+
+![Live progress](docs/gui-progress.png)
+
+</details>
+
+Useful GUI options:
+
+| Option | Meaning |
+|---|---|
+| `--host` | Bind address (default `127.0.0.1`; keep it local) |
+| `--port` | Port (default `8765`; `0` chooses a free port) |
+| `--output-root` | Where archives are stored (default `~/EitaaExports`) |
+| `--no-browser` | Do not open a browser automatically |
+| `--profile` | Use a specific `eitaa-cli` profile |
+| `--quiet` | Quiet HTTP request logs |
+
+The GUI is a local server, not a cloud service: it binds to loopback by default
+and never exposes your session token to the page.
 
 ---
 
@@ -249,6 +300,8 @@ asyncio.run(main())
   server starts returning reactions.
 - **Two-step login:** the current `eitaa-cli` does not support password/cloud-password
   login. Use an existing session or an account without two-step verification.
+- **GUI security:** the GUI is intended for local use. Keep `--host 127.0.0.1`
+  unless you understand how to protect a network-exposed API.
 - **Privacy:** an export contains private text and media. Store it securely.
 - **Responsibility:** export only chats you own or are authorized to access. You are
   responsible for complying with Eitaa's terms and with the rights of message authors.
@@ -268,6 +321,9 @@ asyncio.run(main())
 | Wrong times | Pass the correct `--timezone` |
 | HTML has no images | Keep the `images/`, `css/`, and `js/` folders next to `messages.html` |
 | Progress bars do not render | Use an interactive terminal; redirected output uses plain lines |
+| GUI port is busy | Run `eitaa-export gui --port 0` to pick a free port |
+| GUI is not reachable | Confirm the server is running and open the printed URL exactly |
+| Chat list is empty | Sign in again, or use a saved profile with `--profile` |
 
 ---
 
@@ -294,4 +350,4 @@ documentation are English.
 
 ## License
 
-[MIT](LICENSE)
+MIT

@@ -201,3 +201,70 @@ async def test_downloader_streams_in_chunks(tmp_path) -> None:
     assert job.dest.stat().st_size == size
     assert client.offsets == [0, 512 * 1024, 1024 * 1024]
     assert downloader.bytes_written == size
+
+
+def test_photo_respects_type_and_size_filters(tmp_path) -> None:
+    no_photos = MediaPlanner(tmp_path, TZ, allowed_kinds={"video"})
+    job = no_photos.plan(_photo(1), 1, TS)
+    assert job is not None
+    assert job.info.available is False
+    assert job.info.path is None
+    assert "excluded" in job.info.note
+
+    small = MediaPlanner(tmp_path, TZ, max_file_size=1000)
+    job = small.plan(_photo(1), 1, TS)
+    assert job is not None
+    assert job.info.available is False
+    assert job.info.path is None
+    assert "larger" in job.info.note
+
+
+def test_video_respects_type_filter(tmp_path) -> None:
+    planner = MediaPlanner(tmp_path, TZ, allowed_kinds={"photo"})
+    raw = {
+        "_": "messageMediaDocument",
+        "document": {
+            "_": "document",
+            "id": 7,
+            "access_hash": 8,
+            "file_reference": b"",
+            "mime_type": "video/mp4",
+            "size": 123456,
+            "attributes": [
+                {"_": "documentAttributeVideo", "duration": 96, "w": 720, "h": 1280}
+            ],
+        },
+    }
+    job = planner.plan(raw, 3, TS)
+    assert job is not None
+    assert job.info.available is False
+    assert job.info.path is None
+    assert "Video" in job.info.note
+
+
+@pytest.mark.asyncio
+async def test_total_budget_skips_remaining_files(tmp_path) -> None:
+    from eitaa_export.media import MediaDownloader, MediaJob
+    from eitaa_export.models import MediaInfo
+
+    class Client:
+        async def invoke(self, method, params=None, **kwargs):
+            values = params or {}
+            limit = int(values["limit"])
+            return {"_": "upload.file", "bytes": b"q" * limit}
+
+    jobs = [
+        MediaJob(
+            info=MediaInfo(kind="document", path=f"files/{index}.bin", title=f"{index}.bin"),
+            location={"id": index},
+            size=100,
+            dest=tmp_path / "files" / f"{index}.bin",
+        )
+        for index in (1, 2)
+    ]
+    downloader = MediaDownloader(Client(), tmp_path, quiet=True, max_total_bytes=150)
+    await downloader.download_all(jobs)
+    assert jobs[0].dest is not None and jobs[0].dest.exists()
+    assert not jobs[1].info.available
+    assert jobs[1].info.path is None
+    assert "total download limit" in jobs[1].info.note

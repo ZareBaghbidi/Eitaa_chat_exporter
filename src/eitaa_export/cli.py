@@ -25,7 +25,7 @@ from . import __version__
 from .exporter import Exporter, ExportOptions
 from .models import ExportStats
 
-COMMANDS = {"export", "login", "chats", "version"}
+COMMANDS = {"export", "login", "chats", "gui", "version"}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -88,6 +88,18 @@ def _build_parser() -> argparse.ArgumentParser:
     chats.add_argument("--limit", type=int, default=50, help="Number of chats (default: 50)")
     chats.add_argument("--query", help="Filter by name or username")
     chats.add_argument("--profile", help="eitaa-cli profile name")
+
+    gui = subparsers.add_parser(
+        "gui",
+        help="Open the graphical web interface",
+        description="Start a local Telegram-style web UI for login, chats, and exports.",
+    )
+    gui.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
+    gui.add_argument("--port", type=int, default=8765, help="Port (default: 8765; 0 picks a free port)")
+    gui.add_argument("--output-root", help="Folder for exported archives (default: ~/EitaaExports)")
+    gui.add_argument("--no-browser", action="store_true", help="Do not open a browser automatically")
+    gui.add_argument("--profile", help="eitaa-cli profile name")
+    gui.add_argument("-q", "--quiet", action="store_true", help="Quiet server logs")
 
     subparsers.add_parser("version", help="Show the version")
     return parser
@@ -159,6 +171,23 @@ async def _run_login(args: argparse.Namespace) -> int:
         )
     print("Login successful. You can now run exports.")
     return 0
+
+
+def _run_gui(args: argparse.Namespace) -> int:
+    from .web import serve_gui
+
+    if args.port < 0 or args.port > 65535:
+        print("--port must be between 0 and 65535.", file=sys.stderr)
+        return 2
+    output_root = Path(args.output_root).expanduser() if args.output_root else None
+    return serve_gui(
+        host=args.host,
+        port=args.port,
+        output_root=output_root,
+        profile=args.profile,
+        open_browser=not args.no_browser,
+        quiet=args.quiet,
+    )
 
 
 async def _run_chats(args: argparse.Namespace) -> int:
@@ -333,6 +362,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return asyncio.run(_run_login(args))
         if args.command == "chats":
             return asyncio.run(_run_chats(args))
+        if args.command == "gui":
+            return _run_gui(args)
         if args.command == "export":
             return asyncio.run(_run_export(args))
         _build_parser().print_help()

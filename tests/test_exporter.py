@@ -212,3 +212,18 @@ async def test_time_window_filter(tmp_path) -> None:
     assert "سلام دنیا" not in html
     assert "پاسخ به پیام" in html
     assert stats.messages == 1
+
+
+@pytest.mark.asyncio
+async def test_media_type_filter_keeps_placeholder(tmp_path) -> None:
+    stats = await _export(
+        tmp_path,
+        _messages(include_created=True, include_photo=True),
+        include_media=True,
+        allowed_media=frozenset({"video"}),
+    )
+    output = tmp_path / "out"
+    html = (output / "messages.html").read_text(encoding="utf-8")
+    assert "Photo excluded by export settings." in html
+    assert not (output / "photos").exists()
+    assert stats.photos == 1

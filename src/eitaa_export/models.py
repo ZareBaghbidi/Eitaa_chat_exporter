@@ -80,6 +80,7 @@ class MediaInfo:
     mime: str = ""
     sticker_emoji: str = ""
     available: bool = True
+    note: str = ""
 
     @property
     def has_file(self) -> bool:

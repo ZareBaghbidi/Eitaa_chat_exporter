@@ -6,7 +6,7 @@ import asyncio
 import re
 import shutil
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from pathlib import Path
@@ -28,6 +28,9 @@ class ExportOptions:
     output: Path
     include_media: bool = True
     include_stickers: bool = True
+    allowed_media: frozenset[str] | None = None
+    max_file_size: int | None = None
+    max_total_size: int | None = None
     limit: int | None = None
     since: datetime | None = None
     until: datetime | None = None
@@ -183,16 +186,27 @@ def _input_peer_from_chat(chat: dict[str, Any]) -> dict[str, Any]:
 class Exporter:
     """Export one Eitaa peer into a Telegram-style HTML archive."""
 
-    def __init__(self, client: Any, options: ExportOptions) -> None:
+    def __init__(
+        self,
+        client: Any,
+        options: ExportOptions,
+        *,
+        message_callback: Callable[[str], None] | None = None,
+        progress_factory: Callable[[int, int], Any] | None = None,
+    ) -> None:
         self.client = client
         self.options = options
         self.tz = options.tzinfo()
         self.stats = ExportStats(output_dir=str(options.output))
         self.index = EntityIndex()
         self._warned: set[str] = set()
+        self._message_callback = message_callback
+        self._progress_factory = progress_factory
 
     def progress(self, text: str) -> None:
-        if not self.options.quiet:
+        if self._message_callback is not None:
+            self._message_callback(text)
+        elif not self.options.quiet:
             print(text, file=sys.stderr)
 
     def warn(self, text: str) -> None:
@@ -227,12 +241,15 @@ class Exporter:
                 self.client,
                 options.output,
                 quiet=options.quiet,
+                max_total_bytes=options.max_total_size or 0,
+                reporter_factory=self._progress_factory,
             )
             await downloader.download_all(jobs)
             self.stats.bytes_written = downloader.bytes_written
             for warning in downloader.warnings:
                 self.warn(warning)
 
+        self.progress("Rendering messages...")
         self._copy_assets()
         renderer = Renderer(chat, models, tz=self.tz)
         (options.output / "messages.html").write_text(renderer.render(), encoding="utf-8")
@@ -419,16 +436,31 @@ class Exporter:
             members=members,
         )
 
+    def _allowed_media(self) -> set[str] | None:
+        default = {"photo", "video", "voice", "audio", "document", "sticker", "gif"}
+        if self.options.allowed_media is None:
+            allowed = set(default) if self.options.include_stickers else default - {"sticker"}
+        else:
+            allowed = set(self.options.allowed_media)
+            if not self.options.include_stickers:
+                allowed.discard("sticker")
+        return allowed
+
     def _normalize(
         self,
         raw_messages: list[dict[str, Any]],
         chat: ChatInfo,
     ) -> tuple[list[Message], list[MediaJob]]:
-        planner = (
-            MediaPlanner(self.options.output, self.tz, include_media=self.options.include_media)
-            if self.options.include_media
-            else None
-        )
+        planner = None
+        if self.options.include_media:
+            allowed = self._allowed_media()
+            planner = MediaPlanner(
+                self.options.output,
+                self.tz,
+                include_media=True,
+                allowed_kinds=allowed,
+                max_file_size=self.options.max_file_size,
+            )
         models: list[Message] = []
         jobs: list[MediaJob] = []
         current_key = ("channel" if chat.kind in {"channel", "supergroup"} else
@@ -467,11 +499,8 @@ class Exporter:
             if planner is not None:
                 job = planner.plan(raw.get("media"), message_id, date)
                 if job is not None:
-                    if job.info.kind == "sticker" and not self.options.include_stickers:
-                        job = None
-                    else:
-                        media_info = job.info
-                        jobs.append(job)
+                    media_info = job.info
+                    jobs.append(job)
             models.append(
                 Message(
                     id=message_id,

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Eitaa Export</title>
+  <script>
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem("eitaa-theme") || "dark";
+    } catch (error) {
+      document.documentElement.dataset.theme = "dark";
+    }
+  </script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M21.5 2.5 10.8 13.2"/><path d="M21.5 2.5 14.8 21.5l-4-8.3-8.3-4Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 6.7"/><path d="M20 4v7h-7"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6.2"/><path d="M17.5 14.2A6.5 6.5 0 0 1 22 20"/></symbol>
+    <symbol id="i-channel" viewBox="0 0 24 24"><path d="m3 11 16-6v14L3 13Z"/><path d="M7 15.5V19a2 2 0 0 0 2 2h1"/></symbol>
+    <symbol id="i-group" viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0"/><path d="M14 15.5A4.8 4.8 0 0 1 21.5 19"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="m16 10 5-3v10l-5-3Z"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21M8.5 21h7"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><circle cx="7" cy="18" r="2.6"/><circle cx="18" cy="16" r="2.6"/><path d="M9.6 18V6.2L20.6 4v12"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2.5h8l4 4v15H6Z"/><path d="M14 2.5v4h4"/><path d="M9 12h6M9 16h6"/></symbol>
+    <symbol id="i-sticker" viewBox="0 0 24 24"><path d="M21 11V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/><path d="M21 11a10 10 0 0 1-10 10"/><path d="M8 9h.01M16 9h.01"/><path d="M8.5 14a4 4 0 0 0 6 0"/></symbol>
+    <symbol id="i-gif" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10a2 2 0 1 0 0 4h1v-2M14.5 10v4M17.5 14v-4h2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12.5 5 5L20 6.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M20 12H4"/><path d="m10 6-6 6 6 6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.8 20h18.4Z"/><path d="M12 9v5M12 17.5h.01"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7Z"/><path d="M19 16.5 19.8 19l2.5.8-2.5.8-.8 2.5-.8-2.5-2.5-.8 2.5-.8Z"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 3h3l2 5-2 1.5a13 13 0 0 0 6.5 6.5L16 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2Z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-users-round" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></symbol>
+  </svg>
+
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <header class="sidebar-top">
+        <div class="brand">
+          <span class="brand-mark"><svg class="icon"><use href="#i-logo"></use></svg></span>
+          <span class="brand-name">eitaa<span>export</span></span>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" id="themeBtn" type="button" title="Toggle theme"></button>
+          <button class="avatar avatar-sm" id="profileBtn" type="button" title="Profile"></button>
+        </div>
+      </header>
+
+      <div class="search-wrap">
+        <svg class="icon search-icon"><use href="#i-search"></use></svg>
+        <input id="searchInput" type="search" placeholder="Search chats" autocomplete="off" spellcheck="false" />
+        <button class="icon-btn tiny" id="refreshBtn" type="button" title="Refresh chats">
+          <svg class="icon"><use href="#i-refresh"></use></svg>
+        </button>
+      </div>
+
+      <form class="sidebar-quick" id="sidebarQuickForm">
+        <input id="sidebarTarget" type="text" placeholder="Paste a link, @username, or ID" autocomplete="off" spellcheck="false" />
+        <button class="primary small" type="submit">Go</button>
+      </form>
+
+      <div class="chat-list" id="chatList" aria-live="polite"></div>
+
+      <footer class="sidebar-footer">
+        <button class="me-row" id="meRow" type="button"></button>
+        <button class="icon-btn" id="logoutBtn" type="button" title="Sign out">
+          <svg class="icon"><use href="#i-logout"></use></svg>
+        </button>
+      </footer>
+    </aside>
+
+    <main class="main">
+      <section class="view welcome" id="welcomeView">
+        <div class="welcome-inner">
+          <div class="hero-orb"><svg class="icon"><use href="#i-logo"></use></svg></div>
+          <div class="eyebrow"><svg class="icon"><use href="#i-sparkles"></use></svg> Telegram-style archives for Eitaa</div>
+          <h1>Everything, saved<br /><span>exactly as it happened.</span></h1>
+          <p class="lede">
+            Choose a chat on the left — or paste any channel link, invite link, @username, or peer ID.
+            Pick the media you want, set a size limit, and watch every file download.
+          </p>
+
+          <div class="quick-target">
+            <svg class="icon"><use href="#i-link"></use></svg>
+            <input id="welcomeTarget" type="text" placeholder="https://eitaa.com/… or @channel" autocomplete="off" spellcheck="false" />
+            <button class="primary" id="welcomeTargetBtn" type="button">Continue</button>
+          </div>
+
+          <div class="feature-grid">
+            <div class="feature"><span class="feature-icon"><svg class="icon"><use href="#i-photo"></use></svg></span><div><b>Every media type</b><small>Photos, video, voice, files, stickers and GIFs.</small></div></div>
+            <div class="feature"><span class="feature-icon"><svg class="icon"><use href="#i-download"></use></svg></span><div><b>Live file progress</b><small>A 0–100% bar for each file, plus an overall bar.</small></div></div>
+            <div class="feature"><span class="feature-icon"><svg class="icon"><use href="#i-folder"></use></svg></span><div><b>Telegram HTML</b><small>messages.html, css, js, photos and thumbnails.</small></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view export-view" id="exportView" hidden>
+        <header class="chat-header">
+          <button class="icon-btn back-btn" id="backBtn" type="button" title="Back">
+            <svg class="icon"><use href="#i-arrow-left"></use></svg>
+          </button>
+          <div class="avatar" id="selAvatar"></div>
+          <div class="chat-head-info">
+            <h2 id="selTitle">—</h2>
+            <p id="selSub">—</p>
+          </div>
+          <span class="kind-badge" id="selKind"></span>
+        </header>
+
+        <div class="scroll-area">
+          <div class="content">
+            <div class="target-line">
+              <span class="target-icon"><svg class="icon"><use href="#i-link"></use></svg></span>
+              <div class="target-copy">
+                <label for="targetInput">Export target</label>
+                <input id="targetInput" type="text" spellcheck="false" autocomplete="off" />
+              </div>
+              <button class="secondary small" id="resolveBtn" type="button">Check</button>
+            </div>
+            <div class="inline-note hidden" id="targetNote"></div>
+
+            <form id="exportForm">
+              <section class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>What to export</h3>
+                    <p>Text messages are always included. Pick the media you need.</p>
+                  </div>
+                  <div class="mini-actions">
+                    <button class="ghost tiny" id="selectAllTypes" type="button">All</button>
+                    <button class="ghost tiny" id="clearAllTypes" type="button">None</button>
+                  </div>
+                </div>
+                <div class="type-grid" id="typeGrid"></div>
+              </section>
+
+              <section class="card">
+                <div class="card-head"><div><h3>Limits</h3><p>Keep downloads small, or take everything.</p></div></div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label for="maxFile">Max size per file</label>
+                    <div class="input-unit">
+                      <input id="maxFile" type="number" min="0" step="1" value="0" />
+                      <select id="maxFileUnit">
+                        <option value="1048576">MB</option>
+                        <option value="1073741824">GB</option>
+                      </select>
+                    </div>
+                    <small>0 = unlimited. Larger files are kept as placeholders.</small>
+                  </div>
+                  <div class="field">
+                    <label for="maxTotal">Total download budget</label>
+                    <div class="input-unit">
+                      <input id="maxTotal" type="number" min="0" step="1" value="0" />
+                      <select id="maxTotalUnit">
+                        <option value="1048576">MB</option>
+                        <option value="1073741824">GB</option>
+                      </select>
+                    </div>
+                    <small>0 = unlimited. Remaining media is skipped, not failed.</small>
+                  </div>
+                  <div class="field">
+                    <label for="limitInput">Newest messages</label>
+                    <input id="limitInput" type="number" min="1" step="1" placeholder="All messages" />
+                    <small>Leave empty to fetch the complete history.</small>
+                  </div>
+                  <div class="field">
+                    <label for="timezoneInput">Timezone</label>
+                    <input id="timezoneInput" type="text" value="Asia/Tehran" spellcheck="false" />
+                    <small>Used for dates and file names.</small>
+                  </div>
+                </div>
+              </section>
+
+              <section class="card">
+                <div class="card-head"><div><h3>Date range</h3><p>Optional. Leave blank for the full history.</p></div></div>
+                <div class="field-grid">
+                  <div class="field"><label for="sinceInput">From</label><input id="sinceInput" type="date" /></div>
+                  <div class="field"><label for="untilInput">To</label><input id="untilInput" type="date" /></div>
+                </div>
+              </section>
+
+              <section class="card">
+                <div class="card-head"><div><h3>Options</h3><p>Fine-tune the archive.</p></div></div>
+                <div class="field">
+                  <label for="outputInput">Output folder</label>
+                  <input id="outputInput" type="text" spellcheck="false" placeholder="auto" />
+                  <small id="exportRootHint">Created inside your export root. Reusing a name resumes existing files.</small>
+                </div>
+                <label class="switch-row">
+                  <span><b>Add “created” event</b><small>Adds a service message at the channel creation date.</small></span>
+                  <input id="createdInput" type="checkbox" checked />
+                  <span class="switch"></span>
+                </label>
+                <label class="switch-row">
+                  <span><b>Join invite link if needed</b><small>Joins the group/channel before exporting.</small></span>
+                  <input id="joinInput" type="checkbox" />
+                  <span class="switch"></span>
+                </label>
+              </section>
+
+              <div class="export-actions">
+                <div class="estimate" id="estimate"></div>
+                <button class="primary large" id="startBtn" type="submit">
+                  <svg class="icon"><use href="#i-download"></use></svg>
+                  Start export
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="view job-view" id="jobView" hidden>
+        <header class="chat-header">
+          <button class="icon-btn back-btn" id="jobBackBtn" type="button" title="Back">
+            <svg class="icon"><use href="#i-arrow-left"></use></svg>
+          </button>
+          <div class="avatar" id="jobAvatar"></div>
+          <div class="chat-head-info">
+            <h2 id="jobTitle">Export</h2>
+            <p id="jobSub">—</p>
+          </div>
+          <span class="status-chip" id="jobStatus">Running</span>
+        </header>
+
+        <div class="scroll-area">
+          <div class="content job-content">
+            <div class="job-card hero-progress">
+              <div class="job-card-top">
+                <span class="phase" id="jobPhase">Starting…</span>
+                <span class="big-percent" id="jobPercent">0%</span>
+              </div>
+              <div class="progress big"><div class="progress-fill" id="overallBar"></div></div>
+              <div class="progress-meta">
+                <span id="jobBytes">0 B / 0 B</span>
+                <span id="jobSpeed">—</span>
+                <span id="jobEta">—</span>
+              </div>
+            </div>
+
+            <div class="job-card file-card" id="fileCard">
+              <div class="file-head">
+                <span class="file-name" id="fileName">Waiting for the first file…</span>
+                <span class="file-percent" id="filePercent">0%</span>
+              </div>
+              <div class="progress"><div class="progress-fill" id="fileBar"></div></div>
+              <div class="progress-meta"><span id="fileBytes">0 B / 0 B</span><span id="fileStatus"></span></div>
+            </div>
+
+            <div class="job-card">
+              <div class="card-head"><div><h3>Activity</h3><p>History fetch, downloads, and rendering.</p></div></div>
+              <div class="event-log" id="eventLog"></div>
+            </div>
+
+            <div class="job-card result-card" id="resultCard" hidden>
+              <div class="result-top">
+                <span class="result-icon"><svg class="icon"><use href="#i-check"></use></svg></span>
+                <div><h3 id="resultTitle">Export completed</h3><p id="resultPath"></p></div>
+              </div>
+              <div class="result-stats" id="resultStats"></div>
+              <div class="actions">
+                <a class="primary" id="openExport" href="#" target="_blank" rel="noopener">
+                  <svg class="icon"><use href="#i-external"></use></svg> Open export
+                </a>
+                <button class="secondary" id="exportAgain" type="button">Export another</button>
+              </div>
+            </div>
+
+            <div class="actions job-actions">
+              <button class="danger" id="cancelBtn" type="button">
+                <svg class="icon"><use href="#i-stop"></use></svg> Cancel export
+              </button>
+              <button class="secondary" id="newJobBtn" type="button">Back to chat</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay auth-overlay" id="authOverlay" hidden>
+    <div class="auth-card">
+      <div class="auth-logo"><svg class="icon"><use href="#i-logo"></use></svg></div>
+      <h1>Sign in to Eitaa</h1>
+      <p class="auth-subtitle" id="authSubtitle">Use your phone number. Eitaa will send a verification code.</p>
+
+      <form id="phoneForm" class="auth-step">
+        <label for="phoneInput">Phone number</label>
+        <div class="auth-input">
+          <svg class="icon"><use href="#i-phone"></use></svg>
+          <input id="phoneInput" type="tel" inputmode="tel" autocomplete="tel" placeholder="+989121234567" />
+        </div>
+        <button class="primary full" id="phoneSubmit" type="submit">Continue</button>
+      </form>
+
+      <form id="codeForm" class="auth-step" hidden>
+        <div class="code-target" id="codeTarget"></div>
+        <label for="codeInput">Verification code</label>
+        <input id="codeInput" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="•••••" />
+        <button class="primary full" id="codeSubmit" type="submit">Verify &amp; sign in</button>
+        <div class="code-actions">
+          <button class="ghost" id="resendBtn" type="button">Resend code</button>
+          <button class="ghost" id="changePhoneBtn" type="button">Change number</button>
+        </div>
+      </form>
+
+      <div class="auth-error" id="authError" hidden></div>
+      <div class="auth-foot"><svg class="icon"><use href="#i-lock"></use></svg> The session stays on this computer.</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="profileOverlay" hidden>
+    <div class="modal profile-modal">
+      <button class="icon-btn modal-close" id="profileClose" type="button" title="Close"><svg class="icon"><use href="#i-x"></use></svg></button>
+      <div class="avatar avatar-xl" id="profileAvatar"></div>
+      <h2 id="profileName">—</h2>
+      <p class="profile-handle" id="profileUsername"></p>
+      <div class="profile-rows">
+        <div class="profile-row"><span>Phone</span><b id="profilePhone">—</b></div>
+        <div class="profile-row"><span>Profile</span><b id="profileNameTag">—</b></div>
+        <div class="profile-row"><span>Session</span><b>Stored locally</b></div>
+      </div>
+      <button class="danger full" id="profileLogout" type="button"><svg class="icon"><use href="#i-logout"></use></svg> Sign out</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
